@@ -1,0 +1,1 @@
+"""SignSight UI prototype package."""

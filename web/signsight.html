@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SignSight — ASL to Text</title>
+
+<style>
+* { box-sizing:border-box; }
+body {
+  background:#0b0e14;
+  color:#e8ecf2;
+  font-family:Inter,Arial,sans-serif;
+  margin:0;
+  padding:25px;
+}
+.app { max-width:1280px; margin:auto; }
+header {
+  display:flex; justify-content:space-between;
+  align-items:center; gap:16px; flex-wrap:wrap;
+  margin-bottom:22px;
+}
+h1 { margin:0; font-size:26px; }
+h2 {
+  margin:0 0 16px;
+  font-size:12px;
+  color:#a3adbd;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.subtitle { color:#a3adbd; font-size:13px; }
+.pills { display:flex; gap:8px; flex-wrap:wrap; }
+.badge {
+  background:#1a202b;
+  border:1px solid #252d3a;
+  color:#c4cbd7;
+  padding:8px 12px;
+  border-radius:30px;
+  font-size:12px;
+}
+.badge.live { background:#10261b; color:#7eedb5; }
+.main-grid {
+  display:grid;
+  grid-template-columns:minmax(0, 1.6fr) minmax(300px,1fr);
+  gap:18px;
+}
+.panel {
+  background:#131821;
+  border:1px solid #252d3a;
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:15px;
+}
+.camera-container {
+  position:relative;
+  background:#05070b;
+  border:1px solid #252d3a;
+  border-radius:14px;
+  overflow:hidden;
+  aspect-ratio:4/3;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+video {
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+video.mirrored { transform:scaleX(-1); }
+.placeholder {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:12px; background:#05070b;
+  color:#a3adbd; text-align:center;
+}
+.placeholder[hidden], .camera-info[hidden] {
+  display:none!important;
+}
+.camera-info {
+  position:absolute;top:14px;left:14px;
+  background:#101721;
+  padding:7px 11px;
+  border-radius:8px;font-size:12px;
+}
+.camera-status {
+  position:absolute;
+  bottom:14px;left:14px;right:14px;
+  padding:13px;
+  background:rgba(5,7,11,.88);
+  border:1px solid #252d3a;
+  border-radius:10px;
+  font-size:13px;
+}
+.controls {
+  display:flex; gap:10px;
+  flex-wrap:wrap; align-items:center;
+  margin-top:14px;
+}
+button {
+  background:#1a202b;
+  color:#e8ecf2;
+  border:1px solid #303948;
+  border-radius:9px;
+  padding:11px 16px;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+button.primary { background:#2563eb; border-color:#2563eb; }
+button:disabled { opacity:.4; cursor:not-allowed; }
+button:hover:not(:disabled) { filter:brightness(1.15); }
+.toggle { display:flex;align-items:center;gap:7px;font-size:13px; }
+input[type=checkbox],input[type=range] { accent-color:#5b9bff; }
+.sign-area { display:flex;gap:17px;align-items:center; }
+.letter {
+  display:grid;place-items:center;
+  width:110px;height:110px;
+  flex-shrink:0;
+  border:1px solid #1f3a66;
+  border-radius:14px;
+  background:#0b1a33;
+  color:#e8f0ff;
+  font-size:72px;
+  font-weight:800;
+}
+.metrics { flex:1;min-width:0; }
+.metric-row {
+  display:flex;justify-content:space-between;
+  gap:10px;align-items:center;
+}
+.muted { color:#a3adbd;font-size:12px; }
+.conf-number { font-size:23px;font-weight:700;color:#5b9bff; }
+.bar {
+  position:relative;
+  height:10px;background:#252d3a;
+  border-radius:10px;overflow:hidden;margin:10px 0;
+}
+.fill {
+  height:100%;width:0;
+  background:#5b9bff;border-radius:10px;
+  transition:width .15s;
+}
+.threshold-mark {
+  position:absolute;
+  width:2px;height:100%;
+  background:white;top:0;left:80%;
+}
+.hold-segments { display:flex;gap:4px;margin-top:10px; }
+.segment {
+  flex:1;height:9px;
+  background:#252d3a;border-radius:3px;
+}
+.segment.active { background:#3dd68c; }
+.guess {
+  display:grid;
+  grid-template-columns:25px 1fr 45px;
+  gap:12px;align-items:center;margin:12px 0;
+}
+.guess .bar { margin:0;height:8px; }
+.settings-row { margin:14px 0; }
+.settings-row input { width:100%; }
+.translation {
+  margin-top:5px;
+}
+.output-row {
+  display:flex;gap:10px;align-items:stretch;
+  flex-wrap:wrap;
+}
+.output-text {
+  flex:1;min-width:200px;
+  min-height:65px;padding:15px;
+  background:#0b0e14;
+  border:1px solid #2e3746;
+  border-radius:10px;
+  color:white;
+  font-size:24px;font-weight:700;
+  letter-spacing:.05em;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+.suggestions {
+  display:flex;gap:8px;align-items:center;
+  flex-wrap:wrap;margin-top:14px;
+}
+.suggestions button {
+  background:#0b1a33;color:#cfe0ff;
+  border-color:#1f3a66;border-radius:25px;
+  padding:9px 13px;
+}
+.alphabet {
+  display:grid;grid-template-columns:repeat(26,minmax(0,1fr));
+  gap:5px;margin-top:12px;
+}
+.key {
+  text-align:center;background:#131821;
+  border:1px solid #252d3a;
+  border-radius:6px;padding:12px 0;
+  font-weight:600;color:#a3adbd;
+}
+.key.active { background:#2563eb;color:#fff; }
+.note { font-size:12px;color:#9aa6b7; }
+@media(max-width:850px) {
+  .main-grid { grid-template-columns:1fr; }
+  .alphabet { grid-template-columns:repeat(13,1fr); }
+}
+@media(max-width:480px) {
+  body { padding:12px; }
+  .alphabet { grid-template-columns:repeat(7,1fr); }
+  .sign-area { align-items:flex-start; }
+  .letter { width:80px;height:80px;font-size:48px; }
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>✋ SignSight · ASL → Text</h1>
+      <p class="subtitle">
+        Sign a letter and hold it steady to translate.
+      </p>
+    </div>
+    <div class="pills">
+      <span id="cameraBadge" class="badge">Stopped</span>
+      <span class="badge" id="fpsBadge">FPS: —</span>
+      <span class="badge" id="latencyBadge">Latency: —</span>
+      <span class="badge">Model: Not connected</span>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <section>
+      <div class="camera-container">
+        <video id="cameraVideo" autoplay muted
+               playsinline class="mirrored"></video>
+        <div class="placeholder" id="placeholder">
+          <span style="font-size:40px">📷</span>
+          <strong>Camera is off</strong>
+          <span>Press Start Camera to begin.</span>
+        </div>
+        <span id="cameraInfo" class="camera-info" hidden></span>
+        <div id="cameraStatus" class="camera-status"
+             role="status" aria-live="polite">
+          Camera stopped.
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="startCamera" class="primary">▶ Start Camera</button>
+        <button id="stopCamera" disabled>■ Stop Camera</button>
+        <label class="toggle">
+          <input id="mirrorToggle" type="checkbox" checked>
+          Mirror view
+        </label>
+
+        <label class="toggle">
+            <input id="skeletonToggle" type="checkbox" checked>
+            Hand skeleton
+        </label>
+      </div>
+
+      <div class="panel" style="margin-top:15px">
+        <h2>Camera information</h2>
+        <p id="resolution" class="muted">Resolution: —</p>
+        <p id="deviceStatus" class="muted">Device: Not connected</p>
+        <p class="note">
+          Live camera preview. ASL recognition is not connected yet.
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel">
+        <h2>Current sign <span class="muted">(Demo)</span></h2>
+        <div class="sign-area">
+          <div class="letter" id="currentLetter">—</div>
+          <div class="metrics">
+            <div class="metric-row">
+              <span class="muted">Confidence</span>
+              <strong class="conf-number" id="confidence">0%</strong>
+            </div>
+            <div class="bar">
+              <div id="confidenceFill" class="fill"></div>
+              <div id="thresholdMark" class="threshold-mark"></div>
+            </div>
+            <span class="muted">
+              White line = minimum confidence
+            </span>
+          </div>
+        </div>
+
+        <div class="metric-row" style="margin-top:20px">
+          <span class="muted">Hold steady to add</span>
+          <span class="muted" id="holdCount">0 / 8 frames</span>
+        </div>
+        <div class="hold-segments" id="holdSegments"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Top 3 guesses <span class="muted">(Demo)</span></h2>
+        <div id="topGuesses" class="muted">No prediction yet</div>
+      </div>
+
+      <div class="panel">
+        <h2>Settings</h2>
+        <div class="settings-row">
+          <div class="metric-row">
+            <label for="threshold">Minimum confidence</label>
+            <strong id="thresholdValue">80%</strong>
+          </div>
+          <input type="range" id="threshold"
+                 min="50" max="95" step="5" value="80">
+        </div>
+        <div class="settings-row">
+          <div class="metric-row">
+            <label for="holdFrames">Frames to hold</label>
+            <strong id="holdValue">8</strong>
+          </div>
+          <input type="range" id="holdFrames"
+                 min="4" max="16" value="8">
+        </div>
+        <div class="controls">
+            <button id="demoFrame">Next Mock Frame</button>
+            <button id="resetDemo">Reset Demo</button>
+
+            <button id="startTranslation" class="primary">
+            ▶ Start Translation
+            </button>
+
+            <button id="stopTranslation">
+            ■ Stop Translation
+            </button>
+
+        </div>
+        <p class="note">
+          Mock predictions are separate from the live camera.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel translation">
+    <div class="metric-row">
+      <h2>Translated Text</h2>
+      <span class="muted" id="textCount">0 characters · 0 words</span>
+    </div>
+
+    <div class="output-row">
+      <output id="translatedText" class="output-text"
+              aria-live="polite"></output>
+      <button id="spaceBtn">Space</button>
+      <button id="deleteBtn">Delete</button>
+      <button id="clearBtn">Clear</button>
+    </div>
+
+    <div class="suggestions">
+      <span class="muted">Finish word:</span>
+      <div id="suggestionButtons" class="suggestions"
+           style="margin:0"></div>
+      <button id="copyBtn">Copy</button>
+      <button id="speakBtn" class="primary">Speak aloud</button>
+    </div>
+    <p id="textStatus" class="note" role="status"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Alphabet · Current sign highlighted</h2>
+    <div class="alphabet" id="alphabet"></div>
+    <p class="note">J and Z require motion-based recognition.</p>
+  </section>
+</div>
+
+<script src="./camera.js" defer></script>
+<script src="./signsight.js" defer></script>
+</body>
+</html>
